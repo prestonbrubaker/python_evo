@@ -4,39 +4,48 @@ import time
 import math
 import copy
 import pickle
+import os
+import shutil
 
 
 next_id = 0
-AGENT_COUNT = 1000
-MAX_NODE_SPACE = 0.02
-MAX_MAX_NODE_SPACE = .06
+AGENT_COUNT = 2000
+MAX_NODE_SPACE = 0.01
+MAX_MAX_NODE_SPACE = .03
 NODE_COUNT = 4
-DELTA_T = .01
+DELTA_T = .03
 MAX_START_VELOCITY = 0.00
-VELOCITY_DAMPENING = 1
+VELOCITY_DAMPENING = .990
 CONSTANT_MASS = 0.5
-WEIGHTS_COUNT = 500
-WEIGHTS_SIGMA = 0.1
-MAX_WEIGHT_MAG = 2
-MEMORY_LENGTH = 3
+WEIGHTS_COUNT = 800
+WEIGHTS_SIGMA = 0.5
+MAX_WEIGHT_MAG = 3
+MEMORY_LENGTH = 10
 METABOLIZE_CHANCE = 0.3
 MAX_BIRTH_DIST = 0.02
-FORCE_MULTIPLIER = 35
+FORCE_MULTIPLIER = 30
 
 SAVE_INT = 100
 LOAD_FROM_SAVE = False
 
-FOOD_TILES_ACROSS = 100
-FOOD_GEN_RATE = 100
-RANDOM_AGENT_CHANCE = 0.01
+FOOD_TILES_ACROSS = 200
+FOOD_GEN_RATE = 1600
+RANDOM_AGENT_CHANCE = 0.001
 MIN_AGENTS = 10
-MAX_AGE = 10000
+MAX_AGE = 7000
+
+TIMELAPSE_FREQUENCY = 100
 
 CYCLES_PER_DISPLAY = 1
 FRAMES_PER_SEC = 60
 NODE_WIDTH = 4
 LINE_WIDTH = 2
 INITIAL_FOOD = 30
+
+
+# Custom Scenario
+Y_MOVE_RATE = 0.018
+
 
 itC = 0
 time_ref = time.time()
@@ -51,6 +60,10 @@ for x in range(FOOD_TILES_ACROSS):
 
 pygame.init()
 
+TIMELAPSE_FOLDER = "timelapse"
+if os.path.exists(TIMELAPSE_FOLDER):
+    shutil.rmtree(TIMELAPSE_FOLDER)
+os.makedirs(TIMELAPSE_FOLDER)
 
 WIDTH = 1500
 HEIGHT = WIDTH
@@ -95,6 +108,15 @@ class Agent:
         nodes.append((itC % 10000) / 10000)
         nodes.append(random.uniform(0, 1))
         nodes.append(random.gauss(0, 0.2))
+
+        x = self.node_locs[0][0]
+        y = self.node_locs[0][1]
+
+        for i in range(1, NODE_COUNT):
+            dx = (self.node_locs[i][0] - x)
+            dy = (self.node_locs[i][0] - y)
+            nodes.append(dx / MAX_NODE_SPACE)
+            nodes.append(dy / MAX_NODE_SPACE)
 
         for i in range(MEMORY_LENGTH):
             nodes.append(self.memory[i])
@@ -204,6 +226,7 @@ class Agentfactory:
             self.agents[-1].node_velocities[i][0] = 0
             self.agents[-1].node_velocities[i][1] = 0
         
+        self.agents[-1].age = 0
 
         # Mutate
         random_mag = 10 ** random.randint(-6, 0)
@@ -287,7 +310,7 @@ class Agentfactory:
 
             for i in range(NODE_COUNT):
                 agent.node_locs[i][0] += agent.node_velocities[i][0] * DELTA_T
-                agent.node_locs[i][1] += agent.node_velocities[i][1] * DELTA_T
+                agent.node_locs[i][1] += agent.node_velocities[i][1] * DELTA_T + Y_MOVE_RATE * DELTA_T * (1 - agent.node_locs[i][1])
 
                 if agent.node_locs[i][0] > 1:
                     agent.node_locs[i][0] = 1
@@ -378,6 +401,11 @@ while running:
         screen.blit(text_surface, (50, HEIGHT + 50))
         pygame.display.flip()
         time.sleep(1 / FRAMES_PER_SEC)
+
+    
+    if itC % TIMELAPSE_FREQUENCY == 0:
+        filename = os.path.join(TIMELAPSE_FOLDER, f"frame_{itC:06d}.png")
+        pygame.image.save(screen, filename)
 
 
     for agent in ecosystem.agents:
